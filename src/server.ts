@@ -11,12 +11,15 @@ import {
   handleFileList,
   handleFileDelete,
   handleFileSearch,
+  handleFilePatch,
+  handleGetDirectoryTree,
   handleSessionStart,
   handleSessionExec,
   handleSessionRead,
   handleSessionStop,
   handleGetSystemInfo,
   handleFetchUrl,
+  handleDownloadFile,
 } from './tools/index.js';
 
 const TOKEN = process.env.MCP_TOKEN || 'change-me';
@@ -85,12 +88,37 @@ server.setRequestHandler('tools/list', async () => ({
       },
     },
     {
+      name: 'file_patch',
+      description: '增量编辑文件（搜索并替换）',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          filepath: { type: 'string' },
+          search: { type: 'string', description: '要搜索的原始文本' },
+          replace: { type: 'string', description: '要替换成的新文本' },
+        },
+        required: ['filepath', 'search', 'replace'],
+      },
+    },
+    {
       name: 'file_list',
       description: '列出目录内容',
       inputSchema: {
         type: 'object',
         properties: {
           dirpath: { type: 'string', description: '目录路径，默认 /tmp' },
+        },
+      },
+    },
+    {
+      name: 'get_directory_tree',
+      description: '递归获取目录树结构',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          dirpath: { type: 'string', description: '起始目录' },
+          depth: { type: 'number', description: '最大深度，默认 3' },
+          exclude: { type: 'array', items: { type: 'string' }, description: '要排除的目录名' },
         },
       },
     },
@@ -139,6 +167,18 @@ server.setRequestHandler('tools/list', async () => ({
           body: { type: 'any', description: '请求体' },
         },
         required: ['url'],
+      },
+    },
+    {
+      name: 'download_file',
+      description: '下载远程文件直接保存到 VPS 磁盘',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: '文件 URL' },
+          savePath: { type: 'string', description: '保存路径' },
+        },
+        required: ['url', 'savePath'],
       },
     },
     {
@@ -210,8 +250,14 @@ server.setRequestHandler('tools/call', async (request) => {
       case 'file_write':
         result = await handleFileWrite(args);
         break;
+      case 'file_patch':
+        result = await handleFilePatch(args);
+        break;
       case 'file_list':
         result = await handleFileList(args);
+        break;
+      case 'get_directory_tree':
+        result = await handleGetDirectoryTree(args);
         break;
       case 'file_delete':
         result = await handleFileDelete(args);
@@ -224,6 +270,9 @@ server.setRequestHandler('tools/call', async (request) => {
         break;
       case 'fetch_url':
         result = await handleFetchUrl(args);
+        break;
+      case 'download_file':
+        result = await handleDownloadFile(args);
         break;
       case 'session_start':
         result = await handleSessionStart(args);
