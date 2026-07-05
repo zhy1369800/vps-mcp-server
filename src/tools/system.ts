@@ -1,31 +1,24 @@
 import { executeCommand } from '../sandbox/executor.js';
 
-export async function handleGetSystemInfo(): Promise<any> {
-  const command = 'echo "OS Info:"; uname -a; echo "\nUptime:"; uptime; echo "\nMemory Usage:"; free -h; echo "\nDisk Usage:"; df -h /';
-  const result = await executeCommand(command);
-  return {
-    content: [{
-      type: 'text',
-      text: result.stdout || result.stderr
-    }]
-  };
-}
+export async function handleGetSystemStatus(args: any): Promise<any> {
+  const { type = 'summary', sort = 'cpu' } = args;
 
-export async function handleListProcesses(args: any): Promise<any> {
-  const { sort = 'cpu' } = args;
-  // 使用 ps aux 并根据 CPU 或内存排序，取前 30 个进程
-  let command = 'ps aux --sort=-%cpu | head -n 31';
-  if (sort === 'mem') {
-    command = 'ps aux --sort=-%mem | head -n 31';
+  if (type === 'summary') {
+    const command = 'echo "OS Info:"; uname -a; echo "\nUptime:"; uptime; echo "\nMemory Usage:"; free -h; echo "\nDisk Usage:"; df -h /';
+    const result = await executeCommand(command);
+    return {
+      content: [{ type: 'text', text: result.stdout || result.stderr }]
+    };
+  } else {
+    let command = 'ps aux --sort=-%cpu | head -n 31';
+    if (sort === 'mem') {
+      command = 'ps aux --sort=-%mem | head -n 31';
+    }
+    const result = await executeCommand(command);
+    return {
+      content: [{ type: 'text', text: result.stdout || result.stderr }]
+    };
   }
-  
-  const result = await executeCommand(command);
-  return {
-    content: [{
-      type: 'text',
-      text: result.stdout || result.stderr
-    }]
-  };
 }
 
 export async function handleKillProcess(args: any): Promise<any> {
