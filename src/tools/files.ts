@@ -17,13 +17,6 @@ export async function handleFileWrite(args: any): Promise<any> {
   return { content: [{ type: 'text', text: `Written to ${filepath}` }] };
 }
 
-export async function handleFileList(args: any): Promise<any> {
-  const { dirpath = '/tmp' } = args;
-  const entries = await fs.readdir(dirpath, { withFileTypes: true });
-  const list = entries.map(e => `${e.isDirectory() ? '📁' : '📄'} ${e.name}`).join('\n');
-  return { content: [{ type: 'text', text: list || '(empty)' }] };
-}
-
 export async function handleFileDelete(args: any): Promise<any> {
   const { filepath } = args;
   if (!filepath) throw new Error('filepath required');
@@ -67,14 +60,17 @@ export async function handleFilePatch(args: any): Promise<any> {
   };
 }
 
-export async function handleGetDirectoryTree(args: any): Promise<any> {
-  const { dirpath = '.', depth = 3, exclude = [] } = args;
+export async function handleListFiles(args: any): Promise<any> {
+  const { dirpath = '.', recursive = false, depth = 3, exclude = [] } = args;
   
-  let excludePart = exclude.map((item: string) => `-not -path "*/${item}/*"`).join(' ');
-  const command = `find ${dirpath} -maxdepth ${depth} -not -path "*/.*" ${excludePart} | sed -e "s/[^-][^\/]*\//  |/g" -e "s/| / |-/g"`;
-
-  const result = await executeCommand(command, { timeout: 10000 });
-  return {
-    content: [{ type: 'text', text: result.stdout || '(no results)' }]
-  };
+  if (recursive) {
+    let excludePart = exclude.map((item: string) => `-not -path "*/${item}/*"`).join(' ');
+    const command = `find ${dirpath} -maxdepth ${depth} -not -path "*/.*" ${excludePart} | sed -e "s/[^-][^\/]*\//  |/g" -e "s/| / |-/g"`;
+    const result = await executeCommand(command, { timeout: 10000 });
+    return { content: [{ type: 'text', text: result.stdout || '(no results)' }] };
+  } else {
+    const entries = await fs.readdir(dirpath, { withFileTypes: true });
+    const list = entries.map(e => `${e.isDirectory() ? '📁' : '📄'} ${e.name}`).join('\n');
+    return { content: [{ type: 'text', text: list || '(empty)' }] };
+  }
 }
