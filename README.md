@@ -16,6 +16,18 @@ An advanced Model Context Protocol (MCP) server designed to turn your VPS into a
 - **Network Capabilities**: Make HTTP requests or download large files directly to the VPS.
 - **Flexible Transport**: Supports both `stdio` and `SSE` (HTTP) modes.
 
+### ⚡️ Quick Run with npx
+
+You can run the server directly without cloning the repository:
+
+```bash
+# stdio mode (for local use)
+npx github:zhy1369800/vps-mcp-server
+
+# SSE mode (for remote VPS deployment)
+MODE=sse PORT=8080 MCP_TOKEN=your-token npx github:zhy1369800/vps-mcp-server
+```
+
 ### 🛠 Tools Reference
 
 | Tool | Description |
@@ -30,7 +42,7 @@ An advanced Model Context Protocol (MCP) server designed to turn your VPS into a
 | `http_request` | Fetch web content or download files to disk. |
 | `session_*` | Start, exec, read, or stop persistent `tmux` sessions. |
 
-### 🚀 Quick Start
+### 🚀 Manual Installation
 
 1. **Clone & Install**:
    ```bash
@@ -65,6 +77,18 @@ An advanced Model Context Protocol (MCP) server designed to turn your VPS into a
 - **网络增强**：直接从 VPS 发起 HTTP 请求或下载大文件到磁盘。
 - **双模式支持**：支持 `stdio` 本地调用和 `SSE` (HTTP) 远程调用模式。
 
+### ⚡️ 使用 npx 快速运行
+
+无需克隆代码即可直接启动服务：
+
+```bash
+# stdio 模式 (本地使用)
+npx github:zhy1369800/vps-mcp-server
+
+# SSE 模式 (远程 VPS 部署)
+MODE=sse PORT=8080 MCP_TOKEN=your-token npx github:zhy1369800/vps-mcp-server
+```
+
 ### 🛠 工具列表
 
 | 工具名称 | 功能描述 |
@@ -79,7 +103,7 @@ An advanced Model Context Protocol (MCP) server designed to turn your VPS into a
 | `http_request` | 发起 HTTP 请求或下载文件到 VPS 磁盘。 |
 | `session_*` | 启动、执行、读取或停止持久化的 `tmux` 会话。 |
 
-### 🚀 快速开始
+### 🚀 手动安装步骤
 
 1. **克隆与安装**：
    ```bash
