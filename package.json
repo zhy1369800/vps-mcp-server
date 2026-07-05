@@ -4,18 +4,27 @@
   "description": "MCP Server for VPS sandbox execution — run commands, scripts, and manage sessions remotely via MCP protocol. Supports stdio and SSE transports.",
   "type": "module",
   "main": "dist/server.js",
+  "bin": {
+    "vps-mcp-server": "dist/server.js"
+  },
+  "files": [
+    "dist/**/*.js",
+    "README.md"
+  ],
   "scripts": {
     "build": "tsc",
+    "prepare": "npm run build",
     "start": "node dist/server.js",
     "dev": "tsx src/server.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
     "dotenv": "^16.4.5",
-    "ws": "^8.18.0"
+    "express": "^4.19.2"
   },
   "devDependencies": {
     "@types/node": "^20.14.0",
+    "@types/express": "^4.17.21",
     "tsx": "^4.19.0",
     "typescript": "^5.5.3"
   }
