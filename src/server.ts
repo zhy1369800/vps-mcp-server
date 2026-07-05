@@ -8,20 +8,17 @@ import {
   handleRunScript,
   handleFileRead,
   handleFileWrite,
-  handleFileList,
+  handleListFiles,
   handleFileDelete,
   handleFileSearch,
   handleFilePatch,
-  handleGetDirectoryTree,
   handleSessionStart,
   handleSessionExec,
   handleSessionRead,
   handleSessionStop,
-  handleGetSystemInfo,
-  handleListProcesses,
+  handleGetSystemStatus,
   handleKillProcess,
-  handleFetchUrl,
-  handleDownloadFile,
+  handleHttpRequest,
 } from './tools/index.js';
 
 const TOKEN = process.env.MCP_TOKEN || 'change-me';
@@ -103,24 +100,15 @@ server.setRequestHandler('tools/list', async () => ({
       },
     },
     {
-      name: 'file_list',
-      description: '列出目录内容',
+      name: 'list_files',
+      description: '列出目录内容或递归获取目录树',
       inputSchema: {
         type: 'object',
         properties: {
-          dirpath: { type: 'string', description: '目录路径，默认 /tmp' },
-        },
-      },
-    },
-    {
-      name: 'get_directory_tree',
-      description: '递归获取目录树结构',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          dirpath: { type: 'string', description: '起始目录' },
-          depth: { type: 'number', description: '最大深度，默认 3' },
-          exclude: { type: 'array', items: { type: 'string' }, description: '要排除的目录名' },
+          dirpath: { type: 'string', description: '目录路径' },
+          recursive: { type: 'boolean', description: '是否递归列出 (树状结构)' },
+          depth: { type: 'number', description: '递归深度' },
+          exclude: { type: 'array', items: { type: 'string' }, description: '排除的目录' },
         },
       },
     },
@@ -143,27 +131,20 @@ server.setRequestHandler('tools/list', async () => ({
         properties: {
           dirpath: { type: 'string', description: '起始目录' },
           query: { type: 'string', description: '搜索关键词' },
-          type: { type: 'string', enum: ['name', 'content'], description: '搜索类型：name (文件名) 或 content (文本内容)' },
+          type: { type: 'string', enum: ['name', 'content'], description: '搜索类型' },
           recursive: { type: 'boolean', description: '是否递归搜索' },
         },
         required: ['query'],
       },
     },
     {
-      name: 'get_system_info',
-      description: '获取 VPS 系统信息 (CPU, 内存, 磁盘, 运行时间)',
-      inputSchema: {
-        type: 'object',
-        properties: {},
-      },
-    },
-    {
-      name: 'list_processes',
-      description: '列出当前运行的进程',
+      name: 'get_system_status',
+      description: '获取 VPS 系统状态或进程列表',
       inputSchema: {
         type: 'object',
         properties: {
-          sort: { type: 'string', enum: ['cpu', 'mem'], description: '排序方式' },
+          type: { type: 'string', enum: ['summary', 'processes'], description: 'summary: 系统概览, processes: 进程列表' },
+          sort: { type: 'string', enum: ['cpu', 'mem'], description: '进程排序方式' },
         },
       },
     },
@@ -173,36 +154,25 @@ server.setRequestHandler('tools/list', async () => ({
       inputSchema: {
         type: 'object',
         properties: {
-          pid: { type: 'number', description: '进程 ID' },
-          force: { type: 'boolean', description: '是否强制终止 (SIGKILL)' },
+          pid: { type: 'number' },
+          force: { type: 'boolean' },
         },
         required: ['pid'],
       },
     },
     {
-      name: 'fetch_url',
-      description: '从 VPS 发起 HTTP 请求获取远程内容',
+      name: 'http_request',
+      description: '发起 HTTP 请求或下载文件',
       inputSchema: {
         type: 'object',
         properties: {
-          url: { type: 'string', description: '请求 URL' },
-          method: { type: 'string', enum: ['GET', 'POST', 'PUT', 'DELETE'], default: 'GET' },
-          headers: { type: 'object', description: 'HTTP 请求头' },
-          body: { type: 'any', description: '请求体' },
+          url: { type: 'string' },
+          method: { type: 'string', enum: ['GET', 'POST', 'PUT', 'DELETE'] },
+          headers: { type: 'object' },
+          body: { type: 'any' },
+          savePath: { type: 'string', description: '如果提供，则将响应保存到此文件路径' },
         },
         required: ['url'],
-      },
-    },
-    {
-      name: 'download_file',
-      description: '下载远程文件直接保存到 VPS 磁盘',
-      inputSchema: {
-        type: 'object',
-        properties: {
-          url: { type: 'string', description: '文件 URL' },
-          savePath: { type: 'string', description: '保存路径' },
-        },
-        required: ['url', 'savePath'],
       },
     },
     {
@@ -211,9 +181,9 @@ server.setRequestHandler('tools/list', async () => ({
       inputSchema: {
         type: 'object',
         properties: {
-          sessionId: { type: 'string', description: '自定义会话 ID' },
-          command: { type: 'string', description: '启动时执行的命令，默认 bash' },
-          cwd: { type: 'string', description: '工作目录' },
+          sessionId: { type: 'string' },
+          command: { type: 'string' },
+          cwd: { type: 'string' },
         },
         required: ['sessionId'],
       },
@@ -237,7 +207,7 @@ server.setRequestHandler('tools/list', async () => ({
         type: 'object',
         properties: {
           sessionId: { type: 'string' },
-          maxChars: { type: 'number', description: '最大字符数，默认 20000' },
+          maxChars: { type: 'number' },
         },
         required: ['sessionId'],
       },
@@ -262,62 +232,22 @@ server.setRequestHandler('tools/call', async (request) => {
   try {
     let result;
     switch (name) {
-      case 'run_command':
-        result = await handleRunCommand(args);
-        break;
-      case 'run_script':
-        result = await handleRunScript(args);
-        break;
-      case 'file_read':
-        result = await handleFileRead(args);
-        break;
-      case 'file_write':
-        result = await handleFileWrite(args);
-        break;
-      case 'file_patch':
-        result = await handleFilePatch(args);
-        break;
-      case 'file_list':
-        result = await handleFileList(args);
-        break;
-      case 'get_directory_tree':
-        result = await handleGetDirectoryTree(args);
-        break;
-      case 'file_delete':
-        result = await handleFileDelete(args);
-        break;
-      case 'file_search':
-        result = await handleFileSearch(args);
-        break;
-      case 'get_system_info':
-        result = await handleGetSystemInfo();
-        break;
-      case 'list_processes':
-        result = await handleListProcesses(args);
-        break;
-      case 'kill_process':
-        result = await handleKillProcess(args);
-        break;
-      case 'fetch_url':
-        result = await handleFetchUrl(args);
-        break;
-      case 'download_file':
-        result = await handleDownloadFile(args);
-        break;
-      case 'session_start':
-        result = await handleSessionStart(args);
-        break;
-      case 'session_exec':
-        result = await handleSessionExec(args);
-        break;
-      case 'session_read':
-        result = await handleSessionRead(args);
-        break;
-      case 'session_stop':
-        result = await handleSessionStop(args);
-        break;
-      default);
-        throw new Error(`Unknown tool: ${name}`);
+      case 'run_command': result = await handleRunCommand(args); break;
+      case 'run_script': result = await handleRunScript(args); break;
+      case 'file_read': result = await handleFileRead(args); break;
+      case 'file_write': result = await handleFileWrite(args); break;
+      case 'file_patch': result = await handleFilePatch(args); break;
+      case 'list_files': result = await handleListFiles(args); break;
+      case 'file_delete': result = await handleFileDelete(args); break;
+      case 'file_search': result = await handleFileSearch(args); break;
+      case 'get_system_status': result = await handleGetSystemStatus(args); break;
+      case 'kill_process': result = await handleKillProcess(args); break;
+      case 'http_request': result = await handleHttpRequest(args); break;
+      case 'session_start': result = await handleSessionStart(args); break;
+      case 'session_exec': result = await handleSessionExec(args); break;
+      case 'session_read': result = await handleSessionRead(args); break;
+      case 'session_stop': result = await handleSessionStop(args); break;
+      default: throw new Error(`Unknown tool: ${name}`);
     }
     return result;
   } catch (error: any) {
@@ -333,15 +263,11 @@ const mode = process.env.MODE || 'stdio';
 if (mode === 'sse') {
   const app = express();
   app.use(express.json());
-  
   app.use((req, res, next) => {
     const auth = req.headers.authorization?.replace('Bearer ', '');
-    if (auth !== TOKEN) {
-      return res.status(401).json({ error: 'Unauthorized' });
-    }
+    if (auth !== TOKEN) return res.status(401).json({ error: 'Unauthorized' });
     next();
   });
-
   const transport = new SSEServerTransport('/messages', app);
   server.connect(transport);
   app.listen(process.env.PORT || 8080, () => {
