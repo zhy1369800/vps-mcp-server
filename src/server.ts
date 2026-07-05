@@ -3,6 +3,7 @@ import 'dotenv/config';
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
+import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import express from 'express';
 import {
   handleRunCommand,
@@ -36,7 +37,7 @@ const server = new Server(
   }
 );
 
-server.setRequestHandler('tools/list', async () => ({
+server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
     {
       name: 'run_command',
@@ -227,7 +228,7 @@ server.setRequestHandler('tools/list', async () => ({
   ],
 }));
 
-server.setRequestHandler('tools/call', async (request) => {
+server.setRequestHandler(CallToolRequestSchema, async (request) => {
   const { name, arguments: args } = request.params;
   
   try {
@@ -264,13 +265,32 @@ const mode = process.env.MODE || 'stdio';
 if (mode === 'sse') {
   const app = express();
   app.use(express.json());
-  app.use((req, res, next) => {
-    const auth = req.headers.authorization?.replace('Bearer ', '');
-    if (auth !== TOKEN) return res.status(401).json({ error: 'Unauthorized' });
-    next();
+
+  let transport: SSEServerTransport | null = null;
+
+  app.get('/sse', async (req, res) => {
+    const auth = (req.headers.authorization?.replace('Bearer ', '') || req.query.token) as string;
+    if (auth !== TOKEN) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    transport = new SSEServerTransport('/messages', res);
+    await server.connect(transport);
   });
-  const transport = new SSEServerTransport('/messages', app);
-  server.connect(transport);
+
+  app.post('/messages', async (req, res) => {
+    const auth = req.headers.authorization?.replace('Bearer ', '');
+    if (auth !== TOKEN) {
+      res.status(401).json({ error: 'Unauthorized' });
+      return;
+    }
+    if (transport) {
+      await transport.handlePostMessage(req, res, req.body);
+    } else {
+      res.status(400).json({ error: 'No active SSE transport' });
+    }
+  });
+
   app.listen(process.env.PORT || 8080, () => {
     console.error(`MCP SSE server running on port ${process.env.PORT || 8080}`);
   });
