@@ -10,6 +10,7 @@ import {
   handleFileWrite,
   handleFileList,
   handleFileDelete,
+  handleFileSearch,
   handleSessionStart,
   handleSessionExec,
   handleSessionRead,
@@ -103,6 +104,20 @@ server.setRequestHandler('tools/list', async () => ({
       },
     },
     {
+      name: 'file_search',
+      description: '搜索文件名或文件内容',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          dirpath: { type: 'string', description: '起始目录' },
+          query: { type: 'string', description: '搜索关键词' },
+          type: { type: 'string', enum: ['name', 'content'], description: '搜索类型：name (文件名) 或 content (文本内容)' },
+          recursive: { type: 'boolean', description: '是否递归搜索' },
+        },
+        required: ['query'],
+      },
+    },
+    {
       name: 'session_start',
       description: '启动一个持久 tmux 会话',
       inputSchema: {
@@ -176,6 +191,9 @@ server.setRequestHandler('tools/call', async (request) => {
         break;
       case 'file_delete':
         result = await handleFileDelete(args);
+        break;
+      case 'file_search':
+        result = await handleFileSearch(args);
         break;
       case 'session_start':
         result = await handleSessionStart(args);
