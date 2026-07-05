@@ -18,6 +18,8 @@ import {
   handleSessionRead,
   handleSessionStop,
   handleGetSystemInfo,
+  handleListProcesses,
+  handleKillProcess,
   handleFetchUrl,
   handleDownloadFile,
 } from './tools/index.js';
@@ -156,6 +158,28 @@ server.setRequestHandler('tools/list', async () => ({
       },
     },
     {
+      name: 'list_processes',
+      description: '列出当前运行的进程',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          sort: { type: 'string', enum: ['cpu', 'mem'], description: '排序方式' },
+        },
+      },
+    },
+    {
+      name: 'kill_process',
+      description: '终止指定 PID 的进程',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          pid: { type: 'number', description: '进程 ID' },
+          force: { type: 'boolean', description: '是否强制终止 (SIGKILL)' },
+        },
+        required: ['pid'],
+      },
+    },
+    {
       name: 'fetch_url',
       description: '从 VPS 发起 HTTP 请求获取远程内容',
       inputSchema: {
@@ -268,6 +292,12 @@ server.setRequestHandler('tools/call', async (request) => {
       case 'get_system_info':
         result = await handleGetSystemInfo();
         break;
+      case 'list_processes':
+        result = await handleListProcesses(args);
+        break;
+      case 'kill_process':
+        result = await handleKillProcess(args);
+        break;
       case 'fetch_url':
         result = await handleFetchUrl(args);
         break;
@@ -286,7 +316,7 @@ server.setRequestHandler('tools/call', async (request) => {
       case 'session_stop':
         result = await handleSessionStop(args);
         break;
-      default:
+      default);
         throw new Error(`Unknown tool: ${name}`);
     }
     return result;
