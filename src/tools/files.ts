@@ -6,10 +6,7 @@ export async function handleFileRead(args: any): Promise<any> {
   const { filepath } = args;
   if (!filepath) throw new Error('filepath required');
   const content = await fs.readFile(filepath, 'utf-8');
-  return { content: [{
-    type: 'text',
-    text: content
-  }] };
+  return { content: [{ type: 'text', text: content }] };
 }
 
 export async function handleFileWrite(args: any): Promise<any> {
@@ -17,30 +14,21 @@ export async function handleFileWrite(args: any): Promise<any> {
   if (!filepath) throw new Error('filepath required');
   await fs.mkdir(path.dirname(filepath), { recursive: true });
   await fs.writeFile(filepath, content);
-  return { content: [{
-    type: 'text',
-    text: `Written to ${filepath}`
-  }] };
+  return { content: [{ type: 'text', text: `Written to ${filepath}` }] };
 }
 
 export async function handleFileList(args: any): Promise<any> {
   const { dirpath = '/tmp' } = args;
   const entries = await fs.readdir(dirpath, { withFileTypes: true });
   const list = entries.map(e => `${e.isDirectory() ? '📁' : '📄'} ${e.name}`).join('\n');
-  return { content: [{
-    type: 'text',
-    text: list || '(empty)'
-  }] };
+  return { content: [{ type: 'text', text: list || '(empty)' }] };
 }
 
 export async function handleFileDelete(args: any): Promise<any> {
   const { filepath } = args;
   if (!filepath) throw new Error('filepath required');
   await fs.rm(filepath, { recursive: true, force: true });
-  return { content: [{
-    type: 'text',
-    text: `Deleted ${filepath}`
-  }] };
+  return { content: [{ type: 'text', text: `Deleted ${filepath}` }] };
 }
 
 export async function handleFileSearch(args: any): Promise<any> {
@@ -58,9 +46,35 @@ export async function handleFileSearch(args: any): Promise<any> {
   const output = result.stdout || result.stderr || (result.success ? '(no matches)' : 'Search failed');
 
   return {
-    content: [{
-      type: 'text',
-      text: output.slice(0, 20000)
-    }]
+    content: [{ type: 'text', text: output.slice(0, 20000) }]
+  };
+}
+
+export async function handleFilePatch(args: any): Promise<any> {
+  const { filepath, search, replace } = args;
+  if (!filepath || search === undefined || replace === undefined) throw new Error('filepath, search, and replace required');
+
+  const content = await fs.readFile(filepath, 'utf-8');
+  if (!content.includes(search)) {
+    throw new Error(`Search string not found in ${filepath}`);
+  }
+
+  const newContent = content.replace(search, replace);
+  await fs.writeFile(filepath, newContent);
+
+  return {
+    content: [{ type: 'text', text: `Successfully patched ${filepath}` }]
+  };
+}
+
+export async function handleGetDirectoryTree(args: any): Promise<any> {
+  const { dirpath = '.', depth = 3, exclude = [] } = args;
+  
+  let excludePart = exclude.map((item: string) => `-not -path "*/${item}/*"`).join(' ');
+  const command = `find ${dirpath} -maxdepth ${depth} -not -path "*/.*" ${excludePart} | sed -e "s/[^-][^\/]*\//  |/g" -e "s/| / |-/g"`;
+
+  const result = await executeCommand(command, { timeout: 10000 });
+  return {
+    content: [{ type: 'text', text: result.stdout || '(no results)' }]
   };
 }
