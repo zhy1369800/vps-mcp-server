@@ -15,6 +15,8 @@ import {
   handleSessionExec,
   handleSessionRead,
   handleSessionStop,
+  handleGetSystemInfo,
+  handleFetchUrl,
 } from './tools/index.js';
 
 const TOKEN = process.env.MCP_TOKEN || 'change-me';
@@ -118,6 +120,28 @@ server.setRequestHandler('tools/list', async () => ({
       },
     },
     {
+      name: 'get_system_info',
+      description: '获取 VPS 系统信息 (CPU, 内存, 磁盘, 运行时间)',
+      inputSchema: {
+        type: 'object',
+        properties: {},
+      },
+    },
+    {
+      name: 'fetch_url',
+      description: '从 VPS 发起 HTTP 请求获取远程内容',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: '请求 URL' },
+          method: { type: 'string', enum: ['GET', 'POST', 'PUT', 'DELETE'], default: 'GET' },
+          headers: { type: 'object', description: 'HTTP 请求头' },
+          body: { type: 'any', description: '请求体' },
+        },
+        required: ['url'],
+      },
+    },
+    {
       name: 'session_start',
       description: '启动一个持久 tmux 会话',
       inputSchema: {
@@ -194,6 +218,12 @@ server.setRequestHandler('tools/call', async (request) => {
         break;
       case 'file_search':
         result = await handleFileSearch(args);
+        break;
+      case 'get_system_info':
+        result = await handleGetSystemInfo();
+        break;
+      case 'fetch_url':
+        result = await handleFetchUrl(args);
         break;
       case 'session_start':
         result = await handleSessionStart(args);
