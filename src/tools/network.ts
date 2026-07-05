@@ -1,4 +1,6 @@
 import { executeCommand } from '../sandbox/executor.js';
+import path from 'path';
+import fs from 'fs/promises';
 
 export async function handleFetchUrl(args: any): Promise<any> {
   const { url, method = 'GET', body, headers = {} } = args;
@@ -6,7 +8,6 @@ export async function handleFetchUrl(args: any): Promise<any> {
 
   let command = `curl -sL -X ${method} "${url}"`;
   
-  // Add headers
   Object.entries(headers).forEach(([key, value]) => {
     command += ` -H "${key}: ${value}"`;
   });
@@ -28,4 +29,21 @@ export async function handleFetchUrl(args: any): Promise<any> {
       text: output.slice(0, 30000)
     }]
   };
+}
+
+export async function handleDownloadFile(args: any): Promise<any> {
+  const { url, savePath } = args;
+  if (!url || !savePath) throw new Error('url and savePath required');
+
+  const dir = path.dirname(savePath);
+  await fs.mkdir(dir, { recursive: true });
+
+  const command = `curl -L -o "${savePath}" "${url}"`;
+  const result = await executeCommand(command, { timeout: 60000 });
+
+  if (result.success) {
+    return { content: [{ type: 'text', text: `Successfully downloaded to ${savePath}` }] };
+  } else {
+    throw new Error(`Download failed: ${result.stderr || result.error}`);
+  }
 }
