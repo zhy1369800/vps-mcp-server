@@ -151,8 +151,11 @@ async function doHandleAgyAsk(args: any): Promise<any> {
     const argsStr = extraArgs.join(' ');
     const markerId = Math.random().toString(36).slice(2, 8);
 
-    // 🛡️ 防御式排版设计：对于 tmux 会话模式，无论外界是否传 clear=false，都强制执行清屏以清退键盘命令行回显，保障排版纯净
-    let runCmd = 'clear; ';
+    // 构造组合命令
+    let runCmd = '';
+    if (clear) {
+      runCmd += 'clear; ';
+    }
     // 在 tmux 中执行
     runCmd += `echo "===AGY_START_${markerId}==="; agy -p ${quoteShell(prompt)} ${argsStr}; echo "===AGY_DONE_${markerId}==="`;
     
