@@ -108,7 +108,9 @@ export async function handleAgyAsk(args: any): Promise<any> {
         agySid = match[1];
       }
     } catch (err: any) {
-      console.error(`Failed to read sidStore (${sidStore}):`, err.message);
+      if (err.code !== 'ENOENT') {
+        console.error(`Failed to read sidStore (${sidStore}):`, err.message);
+      }
     }
 
     if (agySid) {
