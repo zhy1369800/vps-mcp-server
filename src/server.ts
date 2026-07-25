@@ -5,6 +5,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { ListToolsRequestSchema, CallToolRequestSchema } from '@modelcontextprotocol/sdk/types.js';
 import express from 'express';
+import { randomUUID } from 'crypto';
 import {
   handleRunCommand,
   handleRunScript,
@@ -26,17 +27,7 @@ import {
 
 const TOKEN = process.env.MCP_TOKEN || 'change-me';
 
-const server = new Server(
-  {
-    name: 'vps-sandbox',
-    version: '1.0.0',
-  },
-  {
-    capabilities: {
-      tools: {},
-    },
-  }
-);
+function registerHandlers(server: Server) {
 
 server.setRequestHandler(ListToolsRequestSchema, async () => ({
   tools: [
@@ -280,7 +271,24 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       isError: true,
     };
   }
-});
+  });
+}
+
+function createMcpServer(): Server {
+  const s = new Server(
+    {
+      name: 'vps-sandbox',
+      version: '1.0.0',
+    },
+    {
+      capabilities: {
+        tools: {},
+      },
+    }
+  );
+  registerHandlers(s);
+  return s;
+}
 
 const mode = process.env.MODE || 'stdio';
 
@@ -288,7 +296,8 @@ if (mode === 'sse') {
   const app = express();
   app.use(express.json());
 
-  let transport: SSEServerTransport | null = null;
+  // 记录每个客户端的独立服务器和传输通道
+  const transports = new Map<string, { server: Server; transport: SSEServerTransport }>();
 
   app.get('/sse', async (req, res) => {
     const auth = (req.headers.authorization?.replace('Bearer ', '') || req.query.token) as string;
@@ -296,8 +305,27 @@ if (mode === 'sse') {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    transport = new SSEServerTransport('/messages', res);
-    await server.connect(transport);
+
+    const clientServer = createMcpServer(); // 为当前连接动态实例化独立的 Server
+    
+    // 创建 SSE Transport，客户端接收消息的端点为 /messages
+    const transport = new SSEServerTransport('/messages', res);
+    const sessionId = transport.sessionId;
+    transports.set(sessionId, { server: clientServer, transport });
+    console.error(`Client connected. Registered SSE transport for sessionId: ${sessionId}`);
+
+    // 连接断开时的自动垃圾清理与资源释放，防范内存泄漏
+    req.on('close', async () => {
+      transports.delete(sessionId);
+      console.error(`Client disconnected. Cleaned up SSE transport for sessionId: ${sessionId}`);
+      try {
+        await clientServer.close();
+      } catch (err) {
+        // 忽略关闭可能抛出的已断连异常
+      }
+    });
+
+    await clientServer.connect(transport);
   });
 
   app.post('/messages', async (req, res) => {
@@ -306,10 +334,18 @@ if (mode === 'sse') {
       res.status(401).json({ error: 'Unauthorized' });
       return;
     }
-    if (transport) {
-      await transport.handlePostMessage(req, res, req.body);
+
+    const sessionId = req.query.sessionId as string;
+    if (!sessionId) {
+      res.status(400).json({ error: 'Missing sessionId query parameter' });
+      return;
+    }
+
+    const entry = transports.get(sessionId);
+    if (entry) {
+      await entry.transport.handlePostMessage(req, res, req.body);
     } else {
-      res.status(400).json({ error: 'No active SSE transport' });
+      res.status(404).json({ error: `Active SSE transport not found for sessionId: ${sessionId}` });
     }
   });
 
@@ -317,7 +353,8 @@ if (mode === 'sse') {
     console.error(`MCP SSE server running on port ${process.env.PORT || 8080}`);
   });
 } else {
+  const stdioServer = createMcpServer();
   const transport = new StdioServerTransport();
-  server.connect(transport);
+  stdioServer.connect(transport);
   console.error('MCP stdio server running');
 }
