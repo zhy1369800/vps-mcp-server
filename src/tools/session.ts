@@ -50,14 +50,14 @@ export async function handleSessionStop(args: any): Promise<any> {
   if (!sessionId) throw new Error('sessionId required');
 
   // 1. 获取 TTY 隔离键以删除关联的 agy 缓存临时文件
-  let ttyId = 'default';
+  let ttyId = `tmux_${sessionId}`;
   try {
     const ttyCheck = await executeCommand(`tmux display-message -p -t mcp-${sessionId} '#{pane_tty}'`);
-    if (ttyCheck.success && ttyCheck.stdout) {
+    if (ttyCheck.success && ttyCheck.stdout && ttyCheck.stdout.trim()) {
       ttyId = ttyCheck.stdout.trim().replace(/^\/dev\//, '').replace(/\//g, '_');
     }
   } catch {
-    ttyId = `tmux_${sessionId}`;
+    // 保持专属 sessionId 兜底
   }
 
   // 删除 TTY 关联和兜底命名的缓存与日志

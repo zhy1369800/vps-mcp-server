@@ -85,15 +85,15 @@ export async function handleAgyAsk(args: any): Promise<any> {
   if (sessionId) {
     // 【场景 A：传了 sessionId，需要实现上下文持续】
     
-    // 获取 TTY 隔离键
-    let ttyId = 'default';
+    // 获取 TTY 隔离键，默认使用专属 sessionId 兜底以防并发碰撞
+    let ttyId = `tmux_${sessionId}`;
     try {
       const ttyCheck = await executeCommand(`tmux display-message -p -t mcp-${sessionId} '#{pane_tty}'`);
-      if (ttyCheck.success && ttyCheck.stdout) {
+      if (ttyCheck.success && ttyCheck.stdout && ttyCheck.stdout.trim()) {
         ttyId = ttyCheck.stdout.trim().replace(/^\/dev\//, '').replace(/\//g, '_');
       }
     } catch {
-      ttyId = `tmux_${sessionId}`;
+      // 保持专属 sessionId 兜底
     }
 
     const logFile = `${TMP_DIR}/agy_conv_${ttyId}.log`;
