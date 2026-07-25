@@ -21,6 +21,7 @@ import {
   handleGetSystemStatus,
   handleKillProcess,
   handleHttpRequest,
+  handleAgyAsk,
 } from './tools/index.js';
 
 const TOKEN = process.env.MCP_TOKEN || 'change-me';
@@ -225,6 +226,26 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ['sessionId'],
       },
     },
+    {
+      name: 'agy_ask',
+      description: '向 agy 提问，自动维护上下文会话 ID。支持直接在普通沙盒中执行，或指定持久化的 tmux 会话执行并自动读取完毕后一次性返回。',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          prompt: { type: 'string', description: '要提问的具体内容' },
+          sessionId: { type: 'string', description: '（可选）绑定的持久 tmux 会话 ID。如果提供，将在该会话中执行；否则在常规沙盒环境中执行。' },
+          clear: { type: 'boolean', description: '是否清空可见屏幕及历史滚动缓冲区，默认为 true' },
+          dangerouslySkipPermissions: { type: 'boolean', description: '是否自动跳过权限询问，默认为 true' },
+          model: { type: 'string', description: '透传给 agy 的模型参数' },
+          agent: { type: 'string', description: '透传给 agy 的代理参数' },
+          effort: { type: 'string', description: '透传给 agy 的思考深度参数' },
+          mode: { type: 'string', description: '透传给 agy 的模式参数' },
+          project: { type: 'string', description: '透传给 agy 的项目参数' },
+          addDir: { type: 'string', description: '透传给 agy 的添加目录参数' }
+        },
+        required: ['prompt']
+      }
+    },
   ],
 }));
 
@@ -249,6 +270,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'session_exec': result = await handleSessionExec(args); break;
       case 'session_read': result = await handleSessionRead(args); break;
       case 'session_stop': result = await handleSessionStop(args); break;
+      case 'agy_ask': result = await handleAgyAsk(args); break;
       default: throw new Error(`Unknown tool: ${name}`);
     }
     return result;
