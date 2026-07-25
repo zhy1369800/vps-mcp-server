@@ -151,11 +151,8 @@ async function doHandleAgyAsk(args: any): Promise<any> {
     const argsStr = extraArgs.join(' ');
     const markerId = Math.random().toString(36).slice(2, 8);
 
-    // 构造组合命令
-    let runCmd = '';
-    if (clear) {
-      runCmd += 'clear; ';
-    }
+    // 🛡️ 防御式排版设计：对于 tmux 会话模式，无论外界是否传 clear=false，都强制执行清屏以清退键盘命令行回显，保障排版纯净
+    let runCmd = 'clear; ';
     // 在 tmux 中执行
     runCmd += `echo "===AGY_START_${markerId}==="; agy -p ${quoteShell(prompt)} ${argsStr}; echo "===AGY_DONE_${markerId}==="`;
     
@@ -171,9 +168,9 @@ async function doHandleAgyAsk(args: any): Promise<any> {
       await new Promise(resolve => setTimeout(resolve, 500));
       const screen = await TmuxManager.readSession(sessionId);
       if (screen.includes(`===AGY_DONE_${markerId}===`)) {
-        // 截取 Marker 之间的部分
-        const startIdx = screen.indexOf(`===AGY_START_${markerId}===`);
-        const endIdx = screen.indexOf(`===AGY_DONE_${markerId}===`);
+        // 🛡️ 使用 lastIndexOf 从后往前检索，精准避开 tmux 命令行的键盘输入回显行
+        const startIdx = screen.lastIndexOf(`===AGY_START_${markerId}===`);
+        const endIdx = screen.lastIndexOf(`===AGY_DONE_${markerId}===`);
         if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
           output = screen.substring(startIdx + `===AGY_START_${markerId}===`.length, endIdx).trim();
           isDone = true;
@@ -185,7 +182,7 @@ async function doHandleAgyAsk(args: any): Promise<any> {
     if (!isDone) {
       // 超时兜底读取当前会话内容
       const screen = await TmuxManager.readSession(sessionId);
-      const startIdx = screen.indexOf(`===AGY_START_${markerId}===`);
+      const startIdx = screen.lastIndexOf(`===AGY_START_${markerId}===`);
       if (startIdx !== -1) {
         output = screen.substring(startIdx + `===AGY_START_${markerId}===`.length).trim();
       } else {
