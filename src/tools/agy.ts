@@ -33,6 +33,10 @@ export async function handleAgyAsk(args: any): Promise<any> {
       return await doHandleAgyAsk(args);
     } finally {
       releaseLock();
+      // 🛡️ 垃圾回收：若当前队列中已无后续并发任务排队，直接从 Map 中移除该键，确保 0 内存残留
+      if (sessionLocks.get(sessionId) === nextLock) {
+        sessionLocks.delete(sessionId);
+      }
     }
   } else {
     return await doHandleAgyAsk(args);
