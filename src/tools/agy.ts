@@ -17,7 +17,29 @@ async function checkCommand(cmd: string): Promise<boolean> {
   }
 }
 
+const sessionLocks = new Map<string, Promise<any>>();
+
 export async function handleAgyAsk(args: any): Promise<any> {
+  const { sessionId } = args;
+  if (sessionId) {
+    const currentLock = sessionLocks.get(sessionId) || Promise.resolve();
+    let releaseLock: () => void = () => {};
+    const nextLock = new Promise<void>((resolve) => {
+      releaseLock = resolve;
+    });
+    sessionLocks.set(sessionId, nextLock);
+    try {
+      await currentLock;
+      return await doHandleAgyAsk(args);
+    } finally {
+      releaseLock();
+    }
+  } else {
+    return await doHandleAgyAsk(args);
+  }
+}
+
+async function doHandleAgyAsk(args: any): Promise<any> {
   const {
     prompt,
     sessionId,
