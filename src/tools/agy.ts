@@ -31,10 +31,13 @@ export async function handleAgyAsk(args: any): Promise<any> {
     try {
       // 排队等待上一个任务完成，最长等待 90 秒，防止客户端早已超时断开后服务端仍无谓排队
       const QUEUE_WAIT_TIMEOUT = 90000;
-      const timeoutPromise = new Promise<'timeout'>((resolve) =>
-        setTimeout(() => resolve('timeout'), QUEUE_WAIT_TIMEOUT)
-      );
+      let queueTimeoutId: ReturnType<typeof setTimeout> | null = null;
+      const timeoutPromise = new Promise<'timeout'>((resolve) => {
+        queueTimeoutId = setTimeout(() => resolve('timeout'), QUEUE_WAIT_TIMEOUT);
+      });
       const raceResult = await Promise.race([currentLock.then(() => 'ok' as const), timeoutPromise]);
+      // 无论哪方先完成，立刻清除定时器，避免幽灵计时器积压
+      if (queueTimeoutId !== null) clearTimeout(queueTimeoutId);
       if (raceResult === 'timeout') {
         return {
           content: [{ type: 'text', text: `⏱️ agy_ask 排队超时 [sessionId=${sessionId}]：前序请求耗时过长（超过 90 秒），当前请求已放弃排队。请稍后重试。` }],
@@ -64,18 +67,18 @@ export async function handleAgyAsk(args: any): Promise<any> {
 
 async function doHandleAgyAsk(args: any): Promise<any> {
   try {
-  const {
-    prompt,
-    sessionId,
-    clear = true,
-    dangerouslySkipPermissions = true,
-    model,
-    agent,
-    effort,
-    mode,
-    project,
-    addDir,
-  } = args;
+    const {
+      prompt,
+      sessionId,
+      clear = true,
+      dangerouslySkipPermissions = true,
+      model,
+      agent,
+      effort,
+      mode,
+      project,
+      addDir,
+    } = args;
 
   if (!prompt) {
     throw new Error('prompt required');
