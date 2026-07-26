@@ -39,7 +39,7 @@ export async function handleSendSms(args: any): Promise<any> {
     }
     if (!from) {
       throw new Error(
-        '未配置发送方号码 "from"！请在环境变量中设置 TWILIO_FROM_NUMBER，或者在请求参数中传入 from 参数（E.164 格式，例如 +17372508034）。'
+        '未配置发送方号码 "from"！请在环境变量中设置 TWILIO_FROM_NUMBER，或者在请求参数中传入 from 参数（E.164 格式，例如 +1xxxxxxxxxx）。'
       );
     }
 
