@@ -243,7 +243,7 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       inputSchema: {
         type: 'object',
         properties: {
-          to: { type: 'string', description: '接收方手机号（E.164 格式，示例: +8619042774311）' },
+          to: { type: 'string', description: '接收方手机号（E.164 格式，示例: +86xxxxxxxxxxx）' },
           body: { type: 'string', description: '短信文本内容' },
           from: { type: 'string', description: '发送方 Twilio 号码，默认读取环境变量 TWILIO_FROM_NUMBER' },
           accountSid: { type: 'string', description: 'Twilio Account SID，默认读取环境变量 TWILIO_ACCOUNT_SID' },

@@ -27,7 +27,7 @@ export async function handleSendSms(args: any): Promise<any> {
     } = args;
 
     if (!to) {
-      throw new Error('接收方手机号 "to" 为必填项，格式示例: "+8619042774311"');
+      throw new Error('接收方手机号 "to" 为必填项，格式示例: "+86xxxxxxxxxxx"');
     }
     if (!body) {
       throw new Error('短信内容 "body" 为必填项');
