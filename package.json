@@ -1,6 +1,6 @@
 {
   "name": "@zy_zhou/vps-mcp-server",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "MCP Server for VPS sandbox execution — run commands, scripts, and manage sessions remotely via MCP protocol. Supports stdio and SSE transports.",
   "type": "module",
   "main": "dist/server.js",
