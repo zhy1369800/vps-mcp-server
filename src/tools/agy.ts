@@ -29,7 +29,18 @@ export async function handleAgyAsk(args: any): Promise<any> {
     });
     sessionLocks.set(sessionId, nextLock);
     try {
-      await currentLock;
+      // 排队等待上一个任务完成，最长等待 90 秒，防止客户端早已超时断开后服务端仍无谓排队
+      const QUEUE_WAIT_TIMEOUT = 90000;
+      const timeoutPromise = new Promise<'timeout'>((resolve) =>
+        setTimeout(() => resolve('timeout'), QUEUE_WAIT_TIMEOUT)
+      );
+      const raceResult = await Promise.race([currentLock.then(() => 'ok' as const), timeoutPromise]);
+      if (raceResult === 'timeout') {
+        return {
+          content: [{ type: 'text', text: `⏱️ agy_ask 排队超时 [sessionId=${sessionId}]：前序请求耗时过长（超过 90 秒），当前请求已放弃排队。请稍后重试。` }],
+          isError: true,
+        };
+      }
       return await doHandleAgyAsk(args);
     } catch (err: any) {
       // 捕获排队等待或业务执行期间的所有异常，返回准确错误内容而非让 MCP SDK 包装成 Unknown error
