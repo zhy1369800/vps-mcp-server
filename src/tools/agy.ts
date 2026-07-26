@@ -31,6 +31,14 @@ export async function handleAgyAsk(args: any): Promise<any> {
     try {
       await currentLock;
       return await doHandleAgyAsk(args);
+    } catch (err: any) {
+      // 捕获排队等待或业务执行期间的所有异常，返回准确错误内容而非让 MCP SDK 包装成 Unknown error
+      const msg = err?.message || String(err);
+      const detail = err?.stack ? `\n\nStack:\n${err.stack}` : '';
+      return {
+        content: [{ type: 'text', text: `❌ agy_ask 执行异常 [sessionId=${sessionId}]: ${msg}${detail}` }],
+        isError: true,
+      };
     } finally {
       releaseLock();
       // 🛡️ 垃圾回收：若当前队列中已无后续并发任务排队，直接从 Map 中移除该键，确保 0 内存残留
@@ -44,6 +52,7 @@ export async function handleAgyAsk(args: any): Promise<any> {
 }
 
 async function doHandleAgyAsk(args: any): Promise<any> {
+  try {
   const {
     prompt,
     sessionId,
@@ -222,6 +231,15 @@ async function doHandleAgyAsk(args: any): Promise<any> {
     return {
       content: [{ type: 'text', text: output }],
       isError: !result.success
+    };
+  }
+  } catch (err: any) {
+    // 捕获所有未预期的底层异常（如 tmux 未就绪、文件系统错误等），确保错误信息准确透传
+    const msg = err?.message || String(err);
+    const detail = err?.stack ? `\n\nStack:\n${err.stack}` : '';
+    return {
+      content: [{ type: 'text', text: `❌ agy_ask 内部异常: ${msg}${detail}` }],
+      isError: true,
     };
   }
 }
