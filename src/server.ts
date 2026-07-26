@@ -22,6 +22,7 @@ import {
   handleKillProcess,
   handleHttpRequest,
   handleAgyAsk,
+  handleSendSms,
 } from './tools/index.js';
 
 const TOKEN = process.env.MCP_TOKEN || 'change-me';
@@ -236,6 +237,21 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
         required: ['prompt']
       }
     },
+    {
+      name: 'send_sms',
+      description: '使用 Twilio API 发送短信 (SMS)',
+      inputSchema: {
+        type: 'object',
+        properties: {
+          to: { type: 'string', description: '接收方手机号（E.164 格式，示例: +8619042774311）' },
+          body: { type: 'string', description: '短信文本内容' },
+          from: { type: 'string', description: '发送方 Twilio 号码，默认优先读取环境变量 TWILIO_FROM_NUMBER 或兜底使用 +17372508034' },
+          accountSid: { type: 'string', description: 'Twilio Account SID，默认读取环境变量 TWILIO_ACCOUNT_SID' },
+          authToken: { type: 'string', description: 'Twilio Auth Token，默认读取环境变量 TWILIO_AUTH_TOKEN' }
+        },
+        required: ['to', 'body']
+      }
+    },
   ],
 }));
 
@@ -261,6 +277,7 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
       case 'session_read': result = await handleSessionRead(args); break;
       case 'session_stop': result = await handleSessionStop(args); break;
       case 'agy_ask': result = await handleAgyAsk(args); break;
+      case 'send_sms': result = await handleSendSms(args); break;
       default: throw new Error(`Unknown tool: ${name}`);
     }
     return result;
