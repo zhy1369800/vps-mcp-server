@@ -193,6 +193,16 @@ async function doHandleAgyAsk(args: any): Promise<any> {
     while (Date.now() - startTimeout < timeoutLimit) {
       await new Promise(resolve => setTimeout(resolve, 500));
       const screen = await TmuxManager.readSession(sessionId);
+
+      // 🛡️ 智能识别：检测是否触发了 OAuth 登录授权
+      if (screen.includes('Authentication required') || screen.includes('Please visit the URL to log in')) {
+        const urlMatch = screen.match(/https:\/\/accounts\.google\.com\/o\/oauth2\/auth\?[^\s\n]+/);
+        const authUrl = urlMatch ? urlMatch[0] : '';
+        output = `🔐 【需重新授权】检测到 agy 需要进行 Google 账号认证。\n\n请在浏览器中打开以下链接进行授权，并将获取到的授权码发送给我：\n\n👉 ${authUrl || '请查看终端屏幕中的授权链接'}`;
+        isDone = true;
+        break;
+      }
+
       if (screen.includes(`===AGY_DONE_${markerId}===`)) {
         // 🛡️ 使用 lastIndexOf 从后往前检索，精准避开 tmux 命令行的键盘输入回显行
         const startIdx = screen.lastIndexOf(`===AGY_START_${markerId}===`);
@@ -240,8 +250,14 @@ async function doHandleAgyAsk(args: any): Promise<any> {
     const argsStr = extraArgs.join(' ');
     const command = `bash -c "agy -p ${quoteShell(prompt)} ${argsStr}"`;
     const result = await executeCommand(command, { timeout: 120000 });
-    const output = result.stdout || result.stderr || (result.success ? '(无输出)' : '执行失败');
+    let output = result.stdout || result.stderr || (result.success ? '(无输出)' : '执行失败');
     
+    if (output.includes('Authentication required') || output.includes('Please visit the URL to log in')) {
+      const urlMatch = output.match(/https:\/\/accounts\.google\.com\/o\/oauth2\/auth\?[^\s\n]+/);
+      const authUrl = urlMatch ? urlMatch[0] : '';
+      output = `🔐 【需重新授权】检测到 agy 需要进行 Google 账号认证。\n\n请在浏览器中打开以下链接进行授权，并将获取到的授权码发送给我：\n\n👉 ${authUrl || '请在会话终端中查看授权链接'}`;
+    }
+
     return {
       content: [{ type: 'text', text: output }],
       isError: !result.success
