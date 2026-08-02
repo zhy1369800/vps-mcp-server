@@ -201,9 +201,11 @@ async function doHandleAgyAsk(args: any): Promise<any> {
       if (currentMarkerIdx !== -1) {
         const currentOutput = screen.substring(currentMarkerIdx);
         if (currentOutput.includes('Authentication required') || currentOutput.includes('Please visit the URL to log in')) {
-          const urlMatch = currentOutput.match(/https:\/\/accounts\.google\.com\/o\/oauth2\/auth\?[^\s\n]+/);
-          const authUrl = urlMatch ? urlMatch[0] : '';
-          output = `🔐 【需重新授权】检测到 agy 需要进行 Google 账号认证。\n\n请在浏览器中打开以下链接进行授权，并将获取到的授权码发送给我：\n\n👉 ${authUrl || '请查看终端屏幕中的授权链接'}`;
+          // 🛡️ 提取当前轮次中最新生成的授权 URL（匹配所有并取最后一个，绝不返回历史旧链接）
+          const urlMatches = Array.from(currentOutput.matchAll(/https:\/\/accounts\.google\.com\/o\/oauth2\/auth\?[^\s\n]+/g));
+          const latestAuthUrl = urlMatches.length > 0 ? urlMatches[urlMatches.length - 1][0] : '';
+
+          output = `🔐 【需重新授权】检测到 agy 需要进行 Google 账号认证。\n\n请在浏览器中打开以下【最新授权链接】（60秒内有效）进行授权，并将获取到的授权码直接发送到当前会话中：\n\n👉 ${latestAuthUrl || '请查看终端屏幕中的最新授权链接'}`;
           isDone = true;
           break;
         }
@@ -259,9 +261,9 @@ async function doHandleAgyAsk(args: any): Promise<any> {
     let output = result.stdout || result.stderr || (result.success ? '(无输出)' : '执行失败');
     
     if (output.includes('Authentication required') || output.includes('Please visit the URL to log in')) {
-      const urlMatch = output.match(/https:\/\/accounts\.google\.com\/o\/oauth2\/auth\?[^\s\n]+/);
-      const authUrl = urlMatch ? urlMatch[0] : '';
-      output = `🔐 【需重新授权】检测到 agy 需要进行 Google 账号认证。\n\n请在浏览器中打开以下链接进行授权，并将获取到的授权码发送给我：\n\n👉 ${authUrl || '请在会话终端中查看授权链接'}`;
+      const urlMatches = Array.from(output.matchAll(/https:\/\/accounts\.google\.com\/o\/oauth2\/auth\?[^\s\n]+/g));
+      const latestAuthUrl = urlMatches.length > 0 ? urlMatches[urlMatches.length - 1][0] : '';
+      output = `🔐 【需重新授权】检测到 agy 需要进行 Google 账号认证。\n\n请在浏览器中打开以下【最新授权链接】（60秒内有效）进行授权，并将获取到的授权码直接发送到当前会话中：\n\n👉 ${latestAuthUrl || '请在会话终端中查看最新授权链接'}`;
     }
 
     return {
