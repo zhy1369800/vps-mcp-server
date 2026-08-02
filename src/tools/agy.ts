@@ -194,13 +194,19 @@ async function doHandleAgyAsk(args: any): Promise<any> {
       await new Promise(resolve => setTimeout(resolve, 500));
       const screen = await TmuxManager.readSession(sessionId);
 
-      // 🛡️ 智能识别：检测是否触发了 OAuth 登录授权
-      if (screen.includes('Authentication required') || screen.includes('Please visit the URL to log in')) {
-        const urlMatch = screen.match(/https:\/\/accounts\.google\.com\/o\/oauth2\/auth\?[^\s\n]+/);
-        const authUrl = urlMatch ? urlMatch[0] : '';
-        output = `🔐 【需重新授权】检测到 agy 需要进行 Google 账号认证。\n\n请在浏览器中打开以下链接进行授权，并将获取到的授权码发送给我：\n\n👉 ${authUrl || '请查看终端屏幕中的授权链接'}`;
-        isDone = true;
-        break;
+      // 🛡️ 智能识别：限定只在【当前这一轮提问 Marker 之后】的区域检测是否触发了 OAuth 登录授权，防止读取历史残留屏误判
+      const currentMarker = `===AGY_START_${markerId}===`;
+      const currentMarkerIdx = screen.lastIndexOf(currentMarker);
+
+      if (currentMarkerIdx !== -1) {
+        const currentOutput = screen.substring(currentMarkerIdx);
+        if (currentOutput.includes('Authentication required') || currentOutput.includes('Please visit the URL to log in')) {
+          const urlMatch = currentOutput.match(/https:\/\/accounts\.google\.com\/o\/oauth2\/auth\?[^\s\n]+/);
+          const authUrl = urlMatch ? urlMatch[0] : '';
+          output = `🔐 【需重新授权】检测到 agy 需要进行 Google 账号认证。\n\n请在浏览器中打开以下链接进行授权，并将获取到的授权码发送给我：\n\n👉 ${authUrl || '请查看终端屏幕中的授权链接'}`;
+          isDone = true;
+          break;
+        }
       }
 
       if (screen.includes(`===AGY_DONE_${markerId}===`)) {
