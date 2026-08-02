@@ -192,7 +192,8 @@ async function doHandleAgyAsk(args: any): Promise<any> {
 
     while (Date.now() - startTimeout < timeoutLimit) {
       await new Promise(resolve => setTimeout(resolve, 500));
-      const screen = await TmuxManager.readSession(sessionId);
+      // ⚡ 阶段一（轮询阶段）：轻量读取最近 200 行，毫秒级快速检错与状态判断
+      const screen = await TmuxManager.readSession(sessionId, 200);
 
       // 🛡️ 智能识别：限定只在【当前这一轮提问 Marker 之后】的区域检测是否触发了 OAuth 登录授权，防止读取历史残留屏误判
       const currentMarker = `===AGY_START_${markerId}===`;
@@ -212,11 +213,12 @@ async function doHandleAgyAsk(args: any): Promise<any> {
       }
 
       if (screen.includes(`===AGY_DONE_${markerId}===`)) {
-        // 🛡️ 使用 lastIndexOf 从后往前检索，精准避开 tmux 命令行的键盘输入回显行
-        const startIdx = screen.lastIndexOf(`===AGY_START_${markerId}===`);
-        const endIdx = screen.lastIndexOf(`===AGY_DONE_${markerId}===`);
+        // ⚡ 阶段二（提取正文阶段）：检测到回答结束，全量抓取整个会话，确保 100% 完整截取正文，绝无截断风险
+        const fullScreen = await TmuxManager.readSession(sessionId);
+        const startIdx = fullScreen.lastIndexOf(`===AGY_START_${markerId}===`);
+        const endIdx = fullScreen.lastIndexOf(`===AGY_DONE_${markerId}===`);
         if (startIdx !== -1 && endIdx !== -1 && endIdx > startIdx) {
-          output = screen.substring(startIdx + `===AGY_START_${markerId}===`.length, endIdx).trim();
+          output = fullScreen.substring(startIdx + `===AGY_START_${markerId}===`.length, endIdx).trim();
           isDone = true;
           break;
         }

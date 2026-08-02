@@ -15,11 +15,12 @@ export class TmuxManager {
     return stdout;
   }
 
-  static async readSession(sessionId: string, lines: number = 200): Promise<string> {
+  static async readSession(sessionId: string, lines?: number): Promise<string> {
     const fullId = this.SESSION_PREFIX + sessionId;
     try {
-      // ⚡ 性能与准确性兼顾：限制只抓取最近指定行数（默认 200 行），防止滚屏大文本导致的 CPU/内存开销
-      const { stdout } = await execAsync(`tmux capture-pane -p -S -${lines} -t ${fullId}`);
+      // 若指定了 lines 则按需限制行数，未指定则读取完整屏幕
+      const linesArg = lines ? `-S -${lines}` : '';
+      const { stdout } = await execAsync(`tmux capture-pane -p ${linesArg} -t ${fullId}`);
       return stdout;
     } catch {
       return '';
